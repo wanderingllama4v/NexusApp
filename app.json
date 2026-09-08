@@ -7,6 +7,12 @@
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
     "newArchEnabled": true,
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/00359242-dbb8-469c-9e70-a6f95a710b10"
+    },
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
@@ -33,8 +39,9 @@
     },
     "extra": {
       "eas": {
-        "projectId": "FILL_IN_AFTER_eas_init"
+        "projectId": "00359242-dbb8-469c-9e70-a6f95a710b10"
       }
-    }
+    },
+    "owner": "miscstuff4v"
   }
 }
