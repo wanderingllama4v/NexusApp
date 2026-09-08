@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity,
   StyleSheet, RefreshControl, Alert,
@@ -24,7 +24,7 @@ export default function TradesScreen() {
     finally { setRef(false); }
   }, []);
 
-  useState(() => { load(); }, []);
+  useEffect(() => { load(); }, [load]);
   const onRefresh = () => { setRef(true); load(); };
 
   const checkPositions = async () => {

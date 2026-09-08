@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { View, Text, ScrollView, StyleSheet, RefreshControl } from 'react-native';
 import axios from 'axios';
 import { API_URL } from '../App';
@@ -24,7 +24,7 @@ export default function HistoryScreen() {
     finally { setRef(false); }
   }, []);
 
-  useState(() => { load(); }, []);
+  useEffect(() => { load(); }, [load]);
   const onRefresh = () => { setRef(true); load(); };
 
   return (

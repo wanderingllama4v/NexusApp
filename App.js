@@ -2,6 +2,11 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Text, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import axios from 'axios';
+
+// Disable iOS HTTP caching globally so pull-to-refresh always gets fresh data
+axios.defaults.headers.common['Cache-Control'] = 'no-cache';
+axios.defaults.headers.common['Pragma'] = 'no-cache';
 import DashboardScreen from './screens/DashboardScreen';
 import TradesScreen from './screens/TradesScreen';
 import HistoryScreen from './screens/HistoryScreen';
