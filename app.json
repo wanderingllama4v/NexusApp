@@ -6,6 +6,7 @@
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
+    "newArchEnabled": true,
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
@@ -13,7 +14,15 @@
     },
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "com.nexus.trading"
+      "bundleIdentifier": "com.nexus.trading",
+      "appleTeamId": "LMTGH92HLL",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSAppTransportSecurity": {
+          "NSAllowsArbitraryLoads": true
+        }
+      },
+      "buildNumber": "1"
     },
     "android": {
       "adaptiveIcon": {
@@ -21,6 +30,11 @@
         "backgroundColor": "#0d1117"
       },
       "package": "com.nexus.trading"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "FILL_IN_AFTER_eas_init"
+      }
     }
   }
 }
