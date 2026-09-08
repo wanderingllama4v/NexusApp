@@ -43,6 +43,7 @@ export default function DashboardScreen() {
   const [brief, setBrief]         = useState(null);
   const [agents, setAgents]       = useState({});
   const [running, setRunning]     = useState(false);
+  const [runningLabel, setRunningLabel] = useState('');
 
   const load = useCallback(async () => {
     try {
@@ -72,10 +73,48 @@ export default function DashboardScreen() {
   const triggerRun = async () => {
     try {
       setRunning(true);
-      await axios.post(`${API_URL}/run`, {});
-      setTimeout(() => { setRunning(false); load(); }, 2000);
+      setRunningLabel('Starting...');
+      const res = await axios.post(`${API_URL}/run`, {});
+      const runId = res.data.run_id;
+      const started = Date.now();
+
+      const steps = [
+        'SCOUT researching news...',
+        'ATLAS reading regime...',
+        'COMPASS ranking sectors...',
+        'Scanning options...',
+        'HUNTER selecting contracts...',
+        'SENTINEL + JUDGE sizing...',
+        'GUARDIAN reviewing...',
+        'ANALYST writing brief...',
+      ];
+      let stepIdx = 0;
+      const stepTimer = setInterval(() => {
+        stepIdx = Math.min(stepIdx + 1, steps.length - 1);
+        const elapsed = Math.round((Date.now() - started) / 1000);
+        setRunningLabel(`${steps[stepIdx]} (${elapsed}s)`);
+      }, 25000);
+
+      const poll = async () => {
+        try {
+          const r = await axios.get(`${API_URL}/runs/${runId}`);
+          const status = r.data.run?.status;
+          if (status === 'completed' || status === 'failed') {
+            clearInterval(stepTimer);
+            setRunning(false);
+            setRunningLabel('');
+            load();
+          } else {
+            setTimeout(poll, 5000);
+          }
+        } catch (_) {
+          setTimeout(poll, 5000);
+        }
+      };
+      setTimeout(poll, 10000);
     } catch (e) {
       setRunning(false);
+      setRunningLabel('');
       Alert.alert('Error', e.message);
     }
   };
@@ -123,14 +162,22 @@ export default function DashboardScreen() {
       </View>
 
       {/* Run button */}
-      <View style={styles.row}>
+      <View style={[styles.row, { flexDirection: 'column', alignItems: 'stretch' }]}>
         <TouchableOpacity
           style={[styles.btn, running && styles.btnDisabled]}
           onPress={triggerRun}
           disabled={running}
         >
-          <Text style={styles.btnText}>{running ? '⚡ Running...' : '▶  Run NEXUS'}</Text>
+          {running
+            ? <ActivityIndicator color="#fff" size="small" />
+            : <Text style={styles.btnText}>▶  Run NEXUS</Text>
+          }
         </TouchableOpacity>
+        {running && runningLabel ? (
+          <Text style={[styles.muted, { textAlign: 'center', marginTop: -4, marginBottom: 8, fontSize: 11 }]}>
+            {runningLabel}
+          </Text>
+        ) : null}
       </View>
 
       {!run && (
