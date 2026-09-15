@@ -74,8 +74,32 @@ export default function DashboardScreen() {
     try {
       setRunning(true);
       setRunningLabel('Starting...');
-      const res = await axios.post(`${API_URL}/run`, {});
-      const runId = res.data.run_id;
+
+      // Snapshot the current latest run ID so we can detect when a new one appears
+      let prevRunId = 0;
+      try {
+        const prev = await axios.get(`${API_URL}/runs?limit=1`);
+        prevRunId = prev.data[0]?.id || 0;
+      } catch (_) {}
+
+      await axios.post(`${API_URL}/run`, {});
+
+      // Wait until the new run record appears in the DB (background task creates it)
+      let runId = null;
+      for (let attempt = 0; attempt < 30; attempt++) {
+        await new Promise(r => setTimeout(r, 2000));
+        try {
+          const r = await axios.get(`${API_URL}/runs?limit=1`);
+          if (r.data[0]?.id > prevRunId) { runId = r.data[0].id; break; }
+        } catch (_) {}
+      }
+      if (!runId) {
+        setRunning(false);
+        setRunningLabel('');
+        Alert.alert('Error', 'Run started but could not track it — check Runs tab');
+        return;
+      }
+
       const started = Date.now();
 
       const steps = [
