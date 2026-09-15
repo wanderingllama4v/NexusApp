@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity,
-  StyleSheet, RefreshControl, Alert,
+  StyleSheet, RefreshControl, Alert, ActivityIndicator,
 } from 'react-native';
 import axios from 'axios';
 import { API_URL } from '../App';
@@ -13,34 +13,37 @@ const BG = '#0d1117'; const BORDER = '#21262d';
 function pnlColor(v) { return v > 0 ? GREEN : v < 0 ? RED : MUTED; }
 
 export default function TradesScreen() {
-  const [open, setOpen]       = useState([]);
-  const [prices, setPrices]   = useState({});  // trade_id → {current_price, pnl, pnl_pct, action}
-  const [refreshing, setRef]  = useState(false);
-  const intervalRef           = useRef(null);
+  const [open, setOpen]           = useState([]);
+  const [prices, setPrices]       = useState({});
+  const [priceStatus, setPriceStatus] = useState('idle'); // idle | loading | ok | error
+  const [priceError, setPriceError]   = useState('');
+  const [refreshing, setRef]      = useState(false);
+  const intervalRef               = useRef(null);
 
   const fetchPrices = useCallback(async () => {
+    setPriceStatus('loading');
     try {
-      const res = await axios.post(`${API_URL}/monitor`);
-      const map = {};
-      for (const r of res.data.results || []) {
-        map[r.trade_id] = r;
-      }
-      setPrices(map);
-    } catch (e) { /* silent — prices are best-effort */ }
+      const res = await axios.get(`${API_URL}/trades/prices`, { timeout: 20000 });
+      setPrices(res.data || {});
+      setPriceStatus('ok');
+      setPriceError('');
+    } catch (e) {
+      setPriceStatus('error');
+      setPriceError(e?.message || 'unknown error');
+    }
   }, []);
 
   const load = useCallback(async () => {
     try {
       const res = await axios.get(`${API_URL}/trades/open`);
       setOpen(res.data);
-    } catch (e) { console.error(e); }
+    } catch (e) { console.error('trades/open error:', e); }
     finally { setRef(false); }
     fetchPrices();
   }, [fetchPrices]);
 
   useEffect(() => {
     load();
-    // refresh prices every 60s while screen is visible
     intervalRef.current = setInterval(fetchPrices, 60_000);
     return () => clearInterval(intervalRef.current);
   }, [load, fetchPrices]);
@@ -49,11 +52,12 @@ export default function TradesScreen() {
 
   const checkPositions = async () => {
     try {
-      const res = await axios.post(`${API_URL}/monitor`);
+      const res = await axios.post(`${API_URL}/monitor`, {}, { timeout: 25000 });
       const results = res.data.results || [];
       const map = {};
-      for (const r of results) map[r.trade_id] = r;
+      for (const r of results) if (r.current_price != null) map[r.trade_id] = r;
       setPrices(map);
+      setPriceStatus('ok');
       const hits = results.filter(r => r.action !== 'HOLD');
       if (hits.length === 0) {
         Alert.alert('Monitor', 'All positions within range');
@@ -65,13 +69,23 @@ export default function TradesScreen() {
     } catch (e) { Alert.alert('Error', e.message); }
   };
 
+  const priceStatusLine = () => {
+    if (priceStatus === 'loading') return <ActivityIndicator size="small" color={BLUE} style={{ marginLeft: 8 }} />;
+    if (priceStatus === 'error')   return <Text style={styles.priceErr}>⚠ {priceError}</Text>;
+    if (priceStatus === 'ok')      return <Text style={styles.priceOk}>● live</Text>;
+    return null;
+  };
+
   return (
     <ScrollView
       style={styles.container}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={BLUE} />}
     >
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>Open Positions</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+          <Text style={styles.headerTitle}>Open Positions</Text>
+          {priceStatusLine()}
+        </View>
         <TouchableOpacity style={styles.btn} onPress={checkPositions}>
           <Text style={styles.btnText}>🔍 Check</Text>
         </TouchableOpacity>
@@ -84,7 +98,7 @@ export default function TradesScreen() {
       )}
 
       {open.map(t => {
-        const p = prices[t.id] || {};
+        const p = prices[t.id] ?? prices[String(t.id)] ?? {};
         const cur    = p.current_price ?? null;
         const pnl    = p.pnl    ?? null;
         const pnlPct = p.pnl_pct ?? null;
@@ -93,7 +107,6 @@ export default function TradesScreen() {
         const stop   = parseFloat(t.stop_price   || 0);
         const target = parseFloat(t.target_price || 0);
 
-        // progress bar: 0% = stop, 100% = target
         const range = target > stop ? target - stop : 1;
         const progress = cur !== null
           ? Math.max(0, Math.min(1, (cur - stop) / range))
@@ -121,7 +134,7 @@ export default function TradesScreen() {
               <View>
                 <Text style={styles.lbl}>CURRENT</Text>
                 <Text style={[styles.val, { fontSize: 20, color: cur !== null ? pnlColor(pnl) : MUTED }]}>
-                  {cur !== null ? `$${cur.toFixed(2)}` : '—'}
+                  {cur !== null ? `$${cur.toFixed(2)}` : (priceStatus === 'loading' ? '...' : '—')}
                 </Text>
               </View>
               {pnl !== null && (
@@ -197,4 +210,6 @@ const styles = StyleSheet.create({
   btnText:      { color: '#e6edf3', fontSize: 12, fontWeight: '600' },
   progressBg:   { height: 3, backgroundColor: '#21262d', borderRadius: 2, marginTop: 10, marginBottom: 2 },
   progressFill: { height: 3, backgroundColor: BLUE, borderRadius: 2 },
+  priceOk:      { color: GREEN, fontSize: 10, marginLeft: 8 },
+  priceErr:     { color: YELLOW, fontSize: 10, marginLeft: 8, flexShrink: 1 },
 });
