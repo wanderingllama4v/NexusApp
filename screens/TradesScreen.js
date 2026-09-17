@@ -50,6 +50,35 @@ export default function TradesScreen() {
 
   const onRefresh = () => { setRef(true); load(); };
 
+  const closeTrade = async (trade) => {
+    const cur = prices[trade.id]?.current_price;
+    const preview = cur != null ? ` @ ~$${cur.toFixed(2)}` : '';
+    Alert.alert(
+      'Close Position',
+      `Close ${trade.contract_symbol}${preview}?\n\nThis records a sim exit at current mid price (−1% slippage).`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Close',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              const res = await axios.post(`${API_URL}/trades/${trade.id}/close`);
+              const d = res.data;
+              Alert.alert(
+                'Position Closed',
+                `Exit: $${d.exit_price.toFixed(2)}\nP&L: ${d.pnl >= 0 ? '+' : ''}$${d.pnl.toFixed(0)} (${d.pnl_pct >= 0 ? '+' : ''}${d.pnl_pct.toFixed(1)}%)`,
+              );
+              load();
+            } catch (e) {
+              Alert.alert('Error', e?.response?.data?.detail || e.message);
+            }
+          },
+        },
+      ],
+    );
+  };
+
   const checkPositions = async () => {
     try {
       const res = await axios.post(`${API_URL}/monitor`, {}, { timeout: 25000 });
@@ -184,6 +213,14 @@ export default function TradesScreen() {
                 </Text>
               )}
             </View>
+
+            {/* Close button */}
+            <TouchableOpacity
+              style={styles.closeBtn}
+              onPress={() => closeTrade(t)}
+            >
+              <Text style={styles.closeBtnText}>✕  Close Position</Text>
+            </TouchableOpacity>
           </View>
         );
       })}
@@ -212,4 +249,6 @@ const styles = StyleSheet.create({
   progressFill: { height: 3, backgroundColor: BLUE, borderRadius: 2 },
   priceOk:      { color: GREEN, fontSize: 10, marginLeft: 8 },
   priceErr:     { color: YELLOW, fontSize: 10, marginLeft: 8, flexShrink: 1 },
+  closeBtn:     { marginTop: 12, borderWidth: 1, borderColor: '#f8514933', borderRadius: 6, paddingVertical: 8, alignItems: 'center' },
+  closeBtnText: { color: RED, fontSize: 12, fontWeight: '600' },
 });
